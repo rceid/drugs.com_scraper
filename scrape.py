@@ -8,6 +8,8 @@ from time import sleep
 import logging
 import csv
 from selenium.webdriver.common.action_chains import ActionChains
+from bs4 import BeautifulSoup
+import requests
 
 ROOT = "https://www.drugs.com/drug_information.html"
 
@@ -22,24 +24,31 @@ def back_home(driver):
     driver.get(ROOT)
     driver.execute_script("window.scrollTo(0, 250)")
 
-def crawl_reviews(driver):
+def crawl_reviews(driver, url):
     print("crawler")
-    i = 0
-    review_path = "/html/body[@class='page-section-drugs page-doctype-list page-alpha-ab-html']/main[@id='container']/div[@id='contentWrap']/div[@id='content']/div[@class='contentBox']/ul[@class='ddc-list-column-2']/li[{}]/a"
-    while True:
-        i += 1
-        driver.execute_script("window.scrollTo(0, {})".format(250+(i*10)))
-        sleep(1)
-        try:
-            drug = driver.find_element_by_xpath(review_path.format(i))
-        except:
-            print("No drugs for this prefix")
-            break
-        try:
-            drug.click()
-            scrape_review(driver)
-        except:
-            print("End of list at idx {}".format(i))
+    r = requests.get(url)
+    soup = BeautifulSoup(r.text, 'html.parser')
+    drugs = soup.find_all('ul', attrs={'class': 'ddc-list-column-2'})
+
+    ###stopped here. THis gets all of the links for the two letter category
+    
+
+    # i = 0
+    # review_path = "/html/body[@class='page-section-drugs page-doctype-list page-alpha-ab-html']/main[@id='container']/div[@id='contentWrap']/div[@id='content']/div[@class='contentBox']/ul[@class='ddc-list-column-2']/li[{}]/a"
+    # while True:
+    #     i += 1
+    #     driver.execute_script("window.scrollTo(0, {})".format(250+(i*10)))
+    #     sleep(1)
+    #     try:
+    #         drug = driver.find_element_by_xpath(review_path.format(i))
+    #     except:
+    #         print("No drugs for this prefix")
+    #         break
+    #     try:
+    #         drug.click()
+    #         scrape_review(driver)
+    #     except:
+    #         print("End of list at idx {}".format(i))
 
 def scrape_review(driver):
     print("scraper_")
@@ -49,15 +58,8 @@ def scrape_review(driver):
     sleep(2)
     print('scrolling')
     driver.execute_script("arguments[0].scrollIntoView();", reviews)
-    #driver.execute_script("window.scrollTo(0, 750)")
-    #actions = ActionChains(driver)
-    #actions.move_to_element(reviews).perform()
     print('scrolled)')
     reviews_button.click()
-
-    
-
-
 
 def iterate_alphabet(driver):
     driver.execute_script("window.scrollTo(0, 250)") 
@@ -74,7 +76,8 @@ def iterate_alphabet(driver):
             print(id_)
             sleep(2)
             driver.find_element_by_id(id_).click()
-            crawl_reviews(driver)
+            current_url = driver.current_url
+            crawl_reviews(driver, current_url)
 
         back_home(driver)
 

@@ -10,8 +10,11 @@ import csv
 from selenium.webdriver.common.action_chains import ActionChains
 from bs4 import BeautifulSoup
 import requests
+from datetime import datetime, date
+import calendar
 
 ROOT = "https://www.drugs.com/drug_information.html"
+CUTOFF_DATE = date(2017, 1, 31)
 
 def get_driver(options):
     driver = webdriver.Chrome('./webdriver/pc/chromedriver.exe', options=options)
@@ -24,42 +27,57 @@ def back_home(driver):
     driver.get(ROOT)
     driver.execute_script("window.scrollTo(0, 250)")
 
-def crawl_reviews(driver, url):
+def crawl_reviews(url):
     print("crawler")
+    #url = "https://www.drugs.com/alpha/ab.html"
+    prefix = 'https://www.drugs.com'
     r = requests.get(url)
     soup = BeautifulSoup(r.text, 'html.parser')
-    drugs = soup.find_all('ul', attrs={'class': 'ddc-list-column-2'})
+    drugs = soup.find('ul', attrs={'class': 'ddc-list-column-2'})
+    links = [prefix + drug['href'] for drug in drugs.find_all('a')]
+    pages = [BeautifulSoup(requests.get(link).text, 'html.parser') for link in links]
+    reviews = [page.find('ul', attrs={'class': 'more-resources-list-general'}) for page in pages]
+    reviews = list(filter(None, review_links)) #some links come out as None
+    review_links = [prefix + rev.find('a')['href'] for review in review_links for rev in review.children if not isinstance(rev, str) and "Review" in rev.text]
+    list(map(lambda link: scrape_review(link), review_links)) #execute the scrape
 
-    ###stopped here. THis gets all of the links for the two letter category
-    
+def scrape_review(link):
+    sort = "?sort_reviews=most_recent"
+    page = 1
+    while True:
+        if page == 1:
+            url = link+sort
+        else:
+            url = link+sort+"page="+page
+        try:
+            r = requests.get(url)
+            soup = BeautifulSoup(r.text, 'html.parser')
+            reviews = soup.find_all('div', attrs={'class':'ddc-comment'})
+            reviews_to_csv(reviews)
+        except: #if page doesn't exist
+            break
+        i += 1
 
-    # i = 0
-    # review_path = "/html/body[@class='page-section-drugs page-doctype-list page-alpha-ab-html']/main[@id='container']/div[@id='contentWrap']/div[@id='content']/div[@class='contentBox']/ul[@class='ddc-list-column-2']/li[{}]/a"
-    # while True:
-    #     i += 1
-    #     driver.execute_script("window.scrollTo(0, {})".format(250+(i*10)))
-    #     sleep(1)
-    #     try:
-    #         drug = driver.find_element_by_xpath(review_path.format(i))
-    #     except:
-    #         print("No drugs for this prefix")
-    #         break
-    #     try:
-    #         drug.click()
-    #         scrape_review(driver)
-    #     except:
-    #         print("End of list at idx {}".format(i))
+def review_to_csv(reviews):
+    for review in reviews:
+        date_ = review.find('span', attrs={'class':'comment-date'}).text
+        month, day, yr = date_.replace(",", "").split(" ")
+        if int(yr) <= CUTOFF_DATE.year -1 : #quick check for year to save time
+            pass
+        int_month = datetime.strptime(month, "%B").month
+        int_yr, int_day = int(yr), int(day)
+        if int_yr == CUTOFF_DATE.year and int_month < CUTOFF_DATE.month: #same yr, earlier month
+            break
+        if int_yr == CUTOFF_date.year and int_month == CUTOFF_DATE.month and int_day <= CUTOFF_DATE.day:
+            break
+        
 
-def scrape_review(driver):
-    print("scraper_")
-    sleep(2)
-    rev = "/html/body[@class='page-section-cons page-doctype-content page-cons-a-b-otic-html']/main[@id='container']/div[@id='contentWrap']/div[@id='sidebar']/div[@class='sideBox sideBoxUserReviews']/div[@class='sideBoxContent ddc-clearfix']/div[@class='ddc-rating-summary']/em/a"
-    reviews= driver.find_element_by_xpath(rev)
-    sleep(2)
-    print('scrolling')
-    driver.execute_script("arguments[0].scrollIntoView();", reviews)
-    print('scrolled)')
-    reviews_button.click()
+
+
+    return None
+
+
+
 
 def iterate_alphabet(driver):
     driver.execute_script("window.scrollTo(0, 250)") 

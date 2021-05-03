@@ -2,3 +2,27 @@ INFO:root:At letter url https://www.drugs.com/alpha/ab.html at 19:35
 INFO:root:At letter url https://www.drugs.com/alpha/ab.html at 19:35
 INFO:root:At letter url https://www.drugs.com/alpha/ac.html at 19:36
 INFO:root:At letter url https://www.drugs.com/alpha/ad.html at 19:38
+INFO:root:At letter url https://www.drugs.com/alpha/ae.html at 19:39
+INFO:root:At letter url https://www.drugs.com/alpha/af.html at 19:39
+INFO:root:At letter url https://www.drugs.com/alpha/ag.html at 19:39
+INFO:root:At letter url https://www.drugs.com/alpha/ah.html at 19:39
+INFO:root:At letter url https://www.drugs.com/alpha/ai.html at 19:39
+INFO:root:At letter url https://www.drugs.com/alpha/aj.html at 19:39
+INFO:root:At letter url https://www.drugs.com/alpha/ak.html at 19:39
+INFO:root:At letter url https://www.drugs.com/alpha/al.html at 19:39
+INFO:root:At letter url https://www.drugs.com/alpha/am.html at 19:45
+INFO:root:At letter url https://www.drugs.com/alpha/an.html at 19:49
+INFO:root:At letter url https://www.drugs.com/alpha/ao.html at 19:51
+INFO:root:At letter url https://www.drugs.com/alpha/ap.html at 19:51
+INFO:root:At letter url https://www.drugs.com/alpha/aq.html at 19:54
+INFO:root:At letter url https://www.drugs.com/alpha/ar.html at 19:54
+INFO:root:At letter url https://www.drugs.com/alpha/as.html at 19:56
+INFO:root:At letter url https://www.drugs.com/alpha/at.html at 19:57
+INFO:root:At letter url https://www.drugs.com/alpha/au.html at 19:59
+INFO:root:At letter url https://www.drugs.com/alpha/av.html at 20:0
+INFO:root:At letter url https://www.drugs.com/alpha/ax.html at 20:1
+INFO:root:At letter url https://www.drugs.com/alpha/ay.html at 20:1
+INFO:root:At letter url https://www.drugs.com/alpha/az.html at 20:1
+INFO:root:At letter url https://www.drugs.com/alpha/a0-9.html at 20:3
+INFO:root:Time https://www.drugs.com/alpha/a.html took: 0:27:48.044439
+INFO:root:At letter url https://www.drugs.com/alpha/ba.html at 20:3

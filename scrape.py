@@ -14,7 +14,7 @@ urllib3.disable_warnings()
 
 ROOT = "https://www.drugs.com"
 SUB_ROOT = 'https://www.drugs.com/drug_information.html'
-CUTOFF_DATE = date(2017, 1, 31)
+#CUTOFF_DATE = date(2017, 1, 31)
 TSV_FILE = "./data/data.tsv"
 HEADER = ["drugName", "condition", "review", "rating", "date", "usefulCount"]
 
@@ -99,8 +99,24 @@ def check_date(date_str):
         return False
     return True
 
+def parse_date(date_str):
+    '''
+    date must come in a YYY/MM//DD format
+    '''
+    assert len(date_str) == 10
+    yr, mo, day = [int(unit) for unit in date_str.split("/")]
+    return date(yr, mo, day)
+
+def try_date_arg(date_arg):
+    try:
+        return parse_date(date_arg)
+    except:
+        print("{} is an invalid input, please enter date in YYYY/MM/DD format.".\
+              format(date_arg))
+        sys.exit()
 
 if __name__ == "__main__":
+    CUTOFF_DATE = try_date_arg(sys.argv[1])
     begin = datetime.now()
     logging.basicConfig(filename="./data/log.txt", level=logging.INFO)
     r = requests.get(SUB_ROOT)

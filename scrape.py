@@ -2,117 +2,107 @@
 
 import os
 import sys
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from time import sleep
 import logging
 import csv
-from selenium.webdriver.common.action_chains import ActionChains
 from bs4 import BeautifulSoup
 import requests
 from datetime import datetime, date
-import calendar
+import urllib3
+urllib3.disable_warnings()
 
-ROOT = "https://www.drugs.com/drug_information.html"
+
+ROOT = "https://www.drugs.com"
+SUB_ROOT= ('https://www.drugs.com/drug_information.html')
 CUTOFF_DATE = date(2017, 1, 31)
+TSV_FILE = "./data/data.tsv"
 
-def get_driver(options):
-    driver = webdriver.Chrome('./webdriver/pc/chromedriver.exe', options=options)
-    driver.get(ROOT)
-    sleep(1)
-    driver.maximize_window()
-    return driver
+def iterate_alphabet(alphabet, tsv_writer):
+    for letter in alphabet:
+        url = ROOT + letter['href']
+        print("At URL:\n", url)
+        r = requests.get(url)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        sub_letters = soup.find("ul", attrs={"class":"ddc-paging"}).find_all("a")
+        for sub in sub_letters:
+            sub_url = ROOT + sub['href']
+            logging.info("At letter url {} at {}:{}".format(sub_url,datetime.now().time().hour, datetime.now().time().minute))
+            crawl_reviews(sub_url, tsv_writer)
 
-def back_home(driver):
-    driver.get(ROOT)
-    driver.execute_script("window.scrollTo(0, 250)")
-
-def crawl_reviews(url):
-    print("crawler")
-    #url = "https://www.drugs.com/alpha/ab.html"
-    prefix = 'https://www.drugs.com'
+def crawl_reviews(url, tsv_writer):
     r = requests.get(url)
     soup = BeautifulSoup(r.text, 'html.parser')
-    drugs = soup.find('ul', attrs={'class': 'ddc-list-column-2'})
-    links = [prefix + drug['href'] for drug in drugs.find_all('a')]
+    drugs = soup.find('ul', attrs={'class': 'ddc-list-column-2'}) #get all drug urls
+    if not drugs:
+        drugs = soup.find('ul', attrs={'class': 'ddc-list-unstyled'}) #get all drug urls
+    links = [ROOT + drug['href'] for drug in drugs.find_all('a')]
     pages = [BeautifulSoup(requests.get(link).text, 'html.parser') for link in links]
-    reviews = [page.find('ul', attrs={'class': 'more-resources-list-general'}) for page in pages]
-    reviews = list(filter(None, review_links)) #some links come out as None
-    review_links = [prefix + rev.find('a')['href'] for review in review_links for rev in review.children if not isinstance(rev, str) and "Review" in rev.text]
-    list(map(lambda link: scrape_review(link), review_links)) #execute the scrape
+    drug_names = [page.find("h1").text for page in pages]
+    reviews = [page.find('ul', attrs={'class': 'more-resources-list-general'}) for page in pages]    
+    drug_revs = dict(zip(drug_names, reviews))
+    drug_revs = {k:v for k, v in drug_revs.items() if v != None} #some links come out as None
+    drug_revs = {drug: ROOT + rev.find('a')['href'] for drug, review in drug_revs.items() for rev in review.children if not isinstance(rev, str) and "Review" in rev.text}
+    list(map(lambda drug_link: scrape_review(drug_link, tsv_writer), drug_revs.items())) #execute the scrape
 
-def scrape_review(link):
+def scrape_review(drug_link, tsv_writer):
+    drug, link = drug_link
     sort = "?sort_reviews=most_recent"
     page = 1
     while True:
         if page == 1:
             url = link+sort
         else:
-            url = link+sort+"page="+page
-        try:
-            r = requests.get(url)
-            soup = BeautifulSoup(r.text, 'html.parser')
-            reviews = soup.find_all('div', attrs={'class':'ddc-comment'})
-            reviews_to_csv(reviews)
-        except: #if page doesn't exist
+            url = link+sort+"&page="+str(page)
+        r = requests.get(url)
+        if r.url != url:
             break
-        i += 1
+        soup = BeautifulSoup(r.text, 'html.parser')
+        reviews = soup.find_all('div', attrs={'class':'ddc-comment'})
+        break_out = reviews_to_tsv(drug, reviews, tsv_writer, url, page)
+        if break_out:
+            break
+        page += 1
 
-def review_to_csv(reviews):
+def reviews_to_tsv(drug_name, reviews, tsv_writer, url, page):
     for review in reviews:
         date_ = review.find('span', attrs={'class':'comment-date'}).text
-        month, day, yr = date_.replace(",", "").split(" ")
-        if int(yr) <= CUTOFF_DATE.year -1 : #quick check for year to save time
-            pass
-        int_month = datetime.strptime(month, "%B").month
-        int_yr, int_day = int(yr), int(day)
-        if int_yr == CUTOFF_DATE.year and int_month < CUTOFF_DATE.month: #same yr, earlier month
-            break
-        if int_yr == CUTOFF_date.year and int_month == CUTOFF_DATE.month and int_day <= CUTOFF_DATE.day:
-            break
-        
+        if not check_date(date_):
+            return True
+        try:
+            tag, review_text = [rev for rev in review.find("p", attrs={"class":"ddc-comment-content"}) if rev != "\n"]
+            condition = tag.text.replace("For ", "").replace(":", "")
+        except: #if there's no condition listed
+            [review_text] = [rev for rev in review.find("p", attrs={"class":"ddc-comment-content"}) if rev != "\n"]
+            condition = ""
+        review_text = review_text.strip().strip('“').strip('”').replace("\r\n", " ").replace("\n", " ")
+        try:
+            rating = int(review.find("div", attrs={'class':"ddc-mgb-2"}).find("b").text)
+        except:
+            rating = "" #some reviews missing rating
+        entry = [drug_name, condition, review_text, rating, date_]
+        tsv_writer.writerow(entry)
 
+def check_date(date_str):
+    month, day, yr = date_str.replace(",", "").split(" ")
+    int_yr, int_day = int(yr), int(day)
+    if int_yr <= CUTOFF_DATE.year -1 : #quick check for year to save time
+        return False
+    int_month = datetime.strptime(month, "%B").month
+    if int_yr == CUTOFF_DATE.year and int_month < CUTOFF_DATE.month: #same yr, earlier month
+        return False
+    if int_yr == CUTOFF_DATE.year and int_month == CUTOFF_DATE.month and int_day <= CUTOFF_DATE.day: #check to the day
+        return False
+    return True
 
-
-    return None
-
-
-
-
-def iterate_alphabet(driver):
-    driver.execute_script("window.scrollTo(0, 250)") 
-    letters_path = "/html/body[@class='page-section-drugs page-doctype-index page-drug-information-html']/main[@id='container']/div[@id='contentWrap']/div[@id='content']/div[@class='contentBox']/ul[@class='ddc-paging']/li[{}]/a"
-    for alpha_index in range(1, 28):
-        letter = driver.find_element_by_xpath(letters_path.format(alpha_index))
-        sleep(1)
-        letter.click()
-        sub_content = "/html/body[@class='page-section-drugs page-doctype-list page-alpha-a-html']/main[@id='container']/div[@id='contentWrap']/div[@id='content']/div[@class='contentBox']/div[@class='ddc-box ddc-mgb-2 paging-list-wrap']/ul[@class='ddc-paging']/li[{}]/span[@id='letter-{}']"
-        letter1 = chr(ord('`')+alpha_index)
-        for alpha_index2 in range(1,5):
-            letter2 =  chr(ord('`')+alpha_index2)
-            id_ = "letter-{}{}".format(letter1, letter2)
-            print(id_)
-            sleep(2)
-            driver.find_element_by_id(id_).click()
-            current_url = driver.current_url
-            crawl_reviews(driver, current_url)
-
-        back_home(driver)
-
-
-
-
-class Bot:
-    def __init__(self):
-        options = webdriver.ChromeOptions()
-        options.add_experimental_option('excludeSwitches', ['enable-logging'])
-        self.driver = get_driver(options)
-    
- 
 
 if __name__ == "__main__":
+    begin = datetime.now()
     logging.basicConfig(filename="./data/log.txt", level=logging.INFO)
-    options = webdriver.ChromeOptions()
-    options.add_experimental_option('excludeSwitches', ['enable-logging'])
-    driver = get_driver(options)
-    iterate_alphabet(driver)
+    r = requests.get(SUB_ROOT)
+    soup = BeautifulSoup(r.text, 'html.parser')
+    alphabet = soup.find("span", attrs={"class":"alpha-list"}).find_all("a")
+    with open(TSV_FILE, 'wt') as out_file:
+        tsv_writer = csv.writer(out_file, delimiter='\t')
+        iterate_alphabet(alphabet, tsv_writer)
+    print("Time to process: {}".format(datetime.now() - begin))
+    logging.info("Time to process: {}".format(datetime.now() - begin))

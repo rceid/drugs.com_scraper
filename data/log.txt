@@ -1,2 +1,4 @@
-INFO:root:At letters https://www.drugs.com/alpha/ab.html at 19:12
-INFO:root:At letters https://www.drugs.com/alpha/ac.html at 19:13
+INFO:root:At letter url https://www.drugs.com/alpha/ab.html at 19:35
+INFO:root:At letter url https://www.drugs.com/alpha/ab.html at 19:35
+INFO:root:At letter url https://www.drugs.com/alpha/ac.html at 19:36
+INFO:root:At letter url https://www.drugs.com/alpha/ad.html at 19:38

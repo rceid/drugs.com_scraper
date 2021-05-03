@@ -13,12 +13,15 @@ urllib3.disable_warnings()
 
 
 ROOT = "https://www.drugs.com"
-SUB_ROOT= ('https://www.drugs.com/drug_information.html')
+SUB_ROOT = 'https://www.drugs.com/drug_information.html'
 CUTOFF_DATE = date(2017, 1, 31)
 TSV_FILE = "./data/data.tsv"
+HEADER = ["drugName", "condition", "review", "rating", "date", "usefulCount"]
 
 def iterate_alphabet(alphabet, tsv_writer):
+    #index into alphabet to start at new letter A: idx 0 || Z: idx: 26 || 0-9: idx 26
     for letter in alphabet:
+        begin = datetime.now()
         url = ROOT + letter['href']
         print("At URL:\n", url)
         r = requests.get(url)
@@ -28,6 +31,7 @@ def iterate_alphabet(alphabet, tsv_writer):
             sub_url = ROOT + sub['href']
             logging.info("At letter url {} at {}:{}".format(sub_url,datetime.now().time().hour, datetime.now().time().minute))
             crawl_reviews(sub_url, tsv_writer)
+        logging.info("Time {} took: {}".format(url, datetime.now() - begin))
 
 def crawl_reviews(url, tsv_writer):
     r = requests.get(url)
@@ -79,7 +83,8 @@ def reviews_to_tsv(drug_name, reviews, tsv_writer, url, page):
             rating = int(review.find("div", attrs={'class':"ddc-mgb-2"}).find("b").text)
         except:
             rating = "" #some reviews missing rating
-        entry = [drug_name, condition, review_text, rating, date_]
+        usefulness = int(review.find_all("span")[-2].text.replace("\n", ""))
+        entry = [drug_name, condition, review_text, rating, date_, usefulness]
         tsv_writer.writerow(entry)
 
 def check_date(date_str):
@@ -103,6 +108,7 @@ if __name__ == "__main__":
     alphabet = soup.find("span", attrs={"class":"alpha-list"}).find_all("a")
     with open(TSV_FILE, 'wt') as out_file:
         tsv_writer = csv.writer(out_file, delimiter='\t')
+        tsv_writer.writerow(HEADER)
         iterate_alphabet(alphabet, tsv_writer)
     print("Time to process: {}".format(datetime.now() - begin))
     logging.info("Time to process: {}".format(datetime.now() - begin))

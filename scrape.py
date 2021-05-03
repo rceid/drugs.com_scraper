@@ -18,29 +18,49 @@ SUB_ROOT = 'https://www.drugs.com/drug_information.html'
 TSV_FILE = "./data/data.tsv"
 HEADER = ["drugName", "condition", "review", "rating", "date", "usefulCount"]
 
+def try_request(url):
+    try:
+        r = requests.get(url)
+    except requests.exceptions.ConnectionError:
+        print("connection refused, limit probably reached. Sleeping 15 secs then retrying")
+        sleep(15)
+        r = requests.get(url)
+    return r
+
 def iterate_alphabet(alphabet, tsv_writer):
-    #index into alphabet to start at new letter A: idx 0 || Z: idx: 26 || 0-9: idx 26
-    for letter in alphabet:
+    #use index to start at new letter A: idx 0 || Z: idx: 26 || 0-9: idx 26 #http://www.satya-weblog.com/tools/find-alphabets.php?q=z
+    for idx, letter in enumerate(alphabet):
+        #if idx < 19:
+        #    continue
+        #if idx != len(alphabet)-1:
+            #continue
         begin = datetime.now()
         url = ROOT + letter['href']
         print("At URL:\n", url)
-        r = requests.get(url)
+        r = try_request(url)
         soup = BeautifulSoup(r.text, 'html.parser')
-        sub_letters = soup.find("ul", attrs={"class":"ddc-paging"}).find_all("a")
-        for sub in sub_letters:
+        [list_class] = ["ddc-paging" if idx != len(alphabet)-1 else "ddc-list-column-2"]
+        sub_letters = soup.find("ul", attrs={"class":list_class}).find_all("a")
+        for sub_idx, sub in enumerate(sub_letters):
             sub_url = ROOT + sub['href']
             logging.info("At letter url {} at {}:{}".format(sub_url,datetime.now().time().hour, datetime.now().time().minute))
+            if idx == len(alphabet)-1: #if 0-9 category
+                crawl_reviews(sub_url, tsv_writer, last_cat=True)
             crawl_reviews(sub_url, tsv_writer)
         logging.info("Time {} took: {}".format(url, datetime.now() - begin))
 
-def crawl_reviews(url, tsv_writer):
-    r = requests.get(url)
-    soup = BeautifulSoup(r.text, 'html.parser')
-    drugs = soup.find('ul', attrs={'class': 'ddc-list-column-2'}) #get all drug urls
-    if not drugs:
-        drugs = soup.find('ul', attrs={'class': 'ddc-list-unstyled'}) #get all drug urls
-    links = [ROOT + drug['href'] for drug in drugs.find_all('a')]
-    pages = [BeautifulSoup(requests.get(link).text, 'html.parser') for link in links]
+def crawl_reviews(url, tsv_writer, last_cat=False):
+    if not last_cat:
+        r = try_request(url)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        drugs = soup.find('ul', attrs={'class': 'ddc-list-column-2'}) #get all drug urls
+        if not drugs:
+            drugs = soup.find('ul', attrs={'class': 'ddc-list-unstyled'}) #get all drug urls
+        links = [ROOT + drug['href'] for drug in drugs.find_all('a')]
+    else:
+        links = [url]
+        print("Links:\n", links)
+    pages = [BeautifulSoup(try_request(link).text, 'html.parser') for link in links]
     drug_names = [page.find("h1").text for page in pages]
     reviews = [page.find('ul', attrs={'class': 'more-resources-list-general'}) for page in pages]    
     drug_revs = dict(zip(drug_names, reviews))
@@ -57,7 +77,7 @@ def scrape_review(drug_link, tsv_writer):
             url = link+sort
         else:
             url = link+sort+"&page="+str(page)
-        r = requests.get(url)
+        r = try_request(url)
         if r.url != url:
             break
         soup = BeautifulSoup(r.text, 'html.parser')
@@ -119,7 +139,7 @@ if __name__ == "__main__":
     CUTOFF_DATE = try_date_arg(sys.argv[1])
     begin = datetime.now()
     logging.basicConfig(filename="./data/log.txt", level=logging.INFO)
-    r = requests.get(SUB_ROOT)
+    r = try_request(SUB_ROOT)
     soup = BeautifulSoup(r.text, 'html.parser')
     alphabet = soup.find("span", attrs={"class":"alpha-list"}).find_all("a")
     with open(TSV_FILE, 'wt') as out_file:

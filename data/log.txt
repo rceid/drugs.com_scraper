@@ -560,3 +560,13 @@ INFO:root:At letter url https://www.drugs.com/pro/8-in-1-ultra-care.html at 13:2
 INFO:root:At letter url https://www.drugs.com/mtm/8-mop.html at 13:22
 INFO:root:Time https://www.drugs.com/alpha/0-9.html took: 0:00:36.491646
 INFO:root:Time to process: 0:00:36.623535
+INFO:root:At letter url https://www.drugs.com/alpha/ab.html at 15:27
+INFO:root:At letter url https://www.drugs.com/alpha/ac.html at 15:28
+INFO:root:At letter url https://www.drugs.com/alpha/ab.html at 15:29
+INFO:root:At letter url https://www.drugs.com/alpha/ab.html at 15:29
+INFO:root:At letter url https://www.drugs.com/alpha/ab.html at 15:44
+INFO:root:At letter url https://www.drugs.com/alpha/ab.html at 15:50
+INFO:root:At letter url https://www.drugs.com/alpha/ab.html at 15:54
+INFO:root:At letter url https://www.drugs.com/alpha/ab.html at 16:2
+INFO:root:At letter url https://www.drugs.com/alpha/ab.html at 16:3
+INFO:root:At letter url https://www.drugs.com/alpha/ac.html at 16:4

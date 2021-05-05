@@ -14,7 +14,6 @@ urllib3.disable_warnings()
 
 ROOT = "https://www.drugs.com"
 SUB_ROOT = 'https://www.drugs.com/drug_information.html'
-#CUTOFF_DATE = date(2017, 1, 31)
 TSV_FILE = "./data/data.tsv"
 HEADER = ["drugName", "condition", "review", "rating", "date", "usefulCount"]
 
@@ -68,36 +67,48 @@ def crawl_reviews(url, tsv_writer, last_cat=False):
     drug_revs = {drug: ROOT + rev.find('a')['href'] for drug, review in drug_revs.items() for rev in review.children if not isinstance(rev, str) and "Review" in rev.text}
     list(map(lambda drug_link: scrape_review(drug_link, tsv_writer), drug_revs.items())) #execute the scrape
 
-def scrape_review(drug_link, tsv_writer):
+def by_condition(drug_link):
     drug, link = drug_link
+    r = try_request(link)
+    soup = BeautifulSoup(r.text, "html.parser")
+    try:
+        conditions = soup.find("select", attrs={"name":"condSelect"}).find_all("option")
+        condition_dict = {condition.text.split(" (")[0] : ROOT+condition['value'] for condition in conditions if not "All conditions" in condition.text}
+    except:
+        condition = soup.find("h1").text.split(" to treat ")[-1]
+        condition_dict = {condition:link}
+
+    return drug, condition_dict
+    
+def scrape_review(drug_link, tsv_writer):
+    drug, condition_dict = by_condition(drug_link)
     sort = "?sort_reviews=most_recent"
     page = 1
-    while True:
-        if page == 1:
-            url = link+sort
-        else:
-            url = link+sort+"&page="+str(page)
-        r = try_request(url)
-        if r.url != url:
-            break
-        soup = BeautifulSoup(r.text, 'html.parser')
-        reviews = soup.find_all('div', attrs={'class':'ddc-comment'})
-        break_out = reviews_to_tsv(drug, reviews, tsv_writer, url, page)
-        if break_out:
-            break
-        page += 1
+    for condition, link in condition_dict.items():
+        while True:
+            if page == 1:
+                url = link+sort
+            else:
+                url = link+sort+"&page="+str(page)
+            r = try_request(url)
+            if r.url != url: #if the page doesn't exist
+                break
+            soup = BeautifulSoup(r.text, 'html.parser')
+            reviews = soup.find_all('div', attrs={'class':'ddc-comment'})
+            break_out = reviews_to_tsv(drug, condition, reviews, tsv_writer, url, page)
+            if break_out: #if the date is before cutoff
+                break
+            page += 1
 
-def reviews_to_tsv(drug_name, reviews, tsv_writer, url, page):
+def reviews_to_tsv(drug_name, condition, reviews, tsv_writer, url, page):
     for review in reviews:
         date_ = review.find('span', attrs={'class':'comment-date'}).text
         if not check_date(date_):
             return True
         try:
-            tag, review_text = [rev for rev in review.find("p", attrs={"class":"ddc-comment-content"}) if rev != "\n"]
-            condition = tag.text.replace("For ", "").replace(":", "")
+            _, review_text = [rev for rev in review.find("p", attrs={"class":"ddc-comment-content"}) if rev != "\n"]
         except: #if there's no condition listed
             [review_text] = [rev for rev in review.find("p", attrs={"class":"ddc-comment-content"}) if rev != "\n"]
-            condition = ""
         review_text = review_text.strip().strip('“').strip('”').replace("\r\n", " ").replace("\n", " ")
         try:
             rating = int(review.find("div", attrs={'class':"ddc-mgb-2"}).find("b").text)

@@ -14,7 +14,7 @@ urllib3.disable_warnings()
 
 ROOT = "https://www.drugs.com"
 SUB_ROOT = 'https://www.drugs.com/drug_information.html'
-TSV_FILE = "./data/data.tsv"
+TSV_FILE = "./data/{}_data.tsv"
 HEADER = ["drugName", "condition", "review", "rating", "date", "usefulCount"]
 
 def try_request(url):
@@ -24,28 +24,32 @@ def try_request(url):
         print("connection refused, limit probably reached. Sleeping 15 secs then retrying")
         sleep(15)
         r = requests.get(url)
+        print("Request up and running")
     return r
 
-def iterate_alphabet(alphabet, tsv_writer):
+def iterate_alphabet(alphabet):#, tsv_writer):
     #use index to start at new letter A: idx 0 || Z: idx: 26 || 0-9: idx 26 #http://www.satya-weblog.com/tools/find-alphabets.php?q=z
     for idx, letter in enumerate(alphabet):
-        #if idx < 19:
-        #    continue
+        # if idx < 1:
+        #     continue
         #if idx != len(alphabet)-1:
             #continue
-        begin = datetime.now()
-        url = ROOT + letter['href']
-        print("At URL:\n", url)
-        r = try_request(url)
-        soup = BeautifulSoup(r.text, 'html.parser')
-        [list_class] = ["ddc-paging" if idx != len(alphabet)-1 else "ddc-list-column-2"]
-        sub_letters = soup.find("ul", attrs={"class":list_class}).find_all("a")
-        for sub_idx, sub in enumerate(sub_letters):
-            sub_url = ROOT + sub['href']
-            logging.info("At letter url {} at {}:{}".format(sub_url,datetime.now().time().hour, datetime.now().time().minute))
-            if idx == len(alphabet)-1: #if 0-9 category
-                crawl_reviews(sub_url, tsv_writer, last_cat=True)
-            crawl_reviews(sub_url, tsv_writer)
+        with open(TSV_FILE.format(letter.text.upper()), 'wt') as out_file:
+            tsv_writer = csv.writer(out_file, delimiter='\t')
+            tsv_writer.writerow(HEADER)
+            begin = datetime.now()
+            url = ROOT + letter['href']
+            print("At URL:\n", url)
+            r = try_request(url)
+            soup = BeautifulSoup(r.text, 'html.parser')
+            [list_class] = ["ddc-paging" if idx != len(alphabet)-1 else "ddc-list-column-2"]
+            sub_letters = soup.find("ul", attrs={"class":list_class}).find_all("a")
+            for sub_idx, sub in enumerate(sub_letters):
+                sub_url = ROOT + sub['href']
+                logging.info("At letter url {} at {}:{}".format(sub_url,datetime.now().time().hour, datetime.now().time().minute))
+                if idx == len(alphabet)-1: #if 0-9 category
+                    crawl_reviews(sub_url, tsv_writer, last_cat=True)
+                crawl_reviews(sub_url, tsv_writer)
         logging.info("Time {} took: {}".format(url, datetime.now() - begin))
 
 def crawl_reviews(url, tsv_writer, last_cat=False):
@@ -153,9 +157,6 @@ if __name__ == "__main__":
     r = try_request(SUB_ROOT)
     soup = BeautifulSoup(r.text, 'html.parser')
     alphabet = soup.find("span", attrs={"class":"alpha-list"}).find_all("a")
-    with open(TSV_FILE, 'wt') as out_file:
-        tsv_writer = csv.writer(out_file, delimiter='\t')
-        tsv_writer.writerow(HEADER)
-        iterate_alphabet(alphabet, tsv_writer)
+    iterate_alphabet(alphabet)
     print("Time to process: {}".format(datetime.now() - begin))
     logging.info("Time to process: {}".format(datetime.now() - begin))

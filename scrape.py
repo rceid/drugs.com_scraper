@@ -1,5 +1,18 @@
 #!/usr/bin/env bash
 
+'''
+This script was created to scrape the Drugs.com website for user reviews using 
+BeautifulSoup4. 
+See if __name__ == "__main__" for the code launcher. The command line argument, 
+CUTOFF_LOSS specifies the date to to which the code will scrape reviews, going
+backwards from the present.
+1) The scraper first obtains a list of all drugs by their first letter, crawls each
+letter at a time, then finally crawls each subletter to find and scrape drugs reviews.
+An example crawling sequence would be B->Ba (scrape) -> Bb (scrape) etc.
+2) The scraped data is then written to a tsv file corresponding to the first letter 
+of the drug.
+'''
+
 import os
 import sys
 from time import sleep
@@ -27,13 +40,8 @@ def try_request(url):
         print("Request up and running")
     return r
 
-def iterate_alphabet(alphabet):#, tsv_writer):
-    #use index to start at new letter A: idx 0 || Z: idx: 26 || 0-9: idx 26 #http://www.satya-weblog.com/tools/find-alphabets.php?q=z
+def iterate_alphabet(alphabet):
     for idx, letter in enumerate(alphabet):
-        # if idx < 1:
-        #     continue
-        #if idx != len(alphabet)-1:
-            #continue
         with open(TSV_FILE.format(letter.text.upper()), 'wt') as out_file:
             tsv_writer = csv.writer(out_file, delimiter='\t')
             tsv_writer.writerow(HEADER)
